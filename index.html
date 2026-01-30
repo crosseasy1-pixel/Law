@@ -1,12 +1,29 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ระบบฝึกข้อสอบอัยการ (OAG Exam Pro)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#1a1b1e',
+                            card: '#25262b',
+                            text: '#c1c2c5',
+                            border: '#2c2e33'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -17,181 +34,681 @@
     <style>
         body { font-family: 'Sarabun', sans-serif; }
         
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 3px; }
+        /* Custom Scrollbar for inner content only */
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+        .dark .custom-scroll::-webkit-scrollbar-thumb { background: #4b5563; }
         
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        /* Tap Highlight removal for mobile */
+        * { -webkit-tap-highlight-color: transparent; }
+        
+        /* Safe area for mobile bottoms (iPhone X+) */
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+
+        /* Grid Animation */
+        .grid-enter { transform: translateY(100%); opacity: 0; }
+        .grid-enter-active { transform: translateY(0); opacity: 1; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .grid-exit { transform: translateY(0); opacity: 1; }
+        .grid-exit-active { transform: translateY(100%); opacity: 0; transition: all 0.2s ease-in; }
     </style>
-    
-    <!-- ⚠️ สำคัญมาก: ประกาศตัวแปรนี้ไว้ก่อนโหลดไฟล์โจทย์ -->
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 h-full w-full overflow-hidden flex flex-col transition-colors duration-300">
+
+    <!-- ========================================== -->
+    <!-- 1. HEADER (Fixed Top) -->
+    <!-- ========================================== -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm z-30 flex-none border-b dark:border-gray-700 relative">
+        <div class="max-w-3xl mx-auto px-4 py-3">
+            
+            <div class="flex items-start justify-between gap-3">
+                <!-- Selectors Container -->
+                <div class="flex-1 min-w-0 flex flex-col gap-2">
+                    
+                    <!-- 1. Exam Selector -->
+                    <div class="relative w-full">
+                        <select id="exam-selector" onchange="changeExamSet(true)" class="w-full pl-3 pr-8 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 border-none text-sm font-bold text-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 appearance-none truncate cursor-pointer transition-colors">
+                            <option value="" disabled selected>เลือกชุดข้อสอบ...</option>
+                        </select>
+                        <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400">
+                            <i class="fa-solid fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+
+                    <!-- 2. Category Selector -->
+                    <div id="category-wrapper" class="relative w-full hidden">
+                        <select id="category-selector" onchange="changeCategory()" class="w-full pl-9 pr-8 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-xs font-semibold text-indigo-700 dark:text-indigo-300 focus:ring-2 focus:ring-indigo-500 appearance-none truncate cursor-pointer transition-colors">
+                            <option value="all">รวมทุกหมวดหมู่</option>
+                        </select>
+                        <!-- Icon Left -->
+                        <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-400 dark:text-indigo-400">
+                            <i class="fa-solid fa-filter text-xs"></i>
+                        </div>
+                        <!-- Icon Right -->
+                        <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-400 dark:text-indigo-400">
+                            <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Settings / Tools (Right Side) -->
+                <div class="flex items-start gap-1.5 shrink-0 pt-0.5">
+                    
+                    <!-- Reset Button (New!) -->
+                    <button onclick="resetExam()" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 transition-colors" title="เริ่มทำใหม่">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+
+                    <!-- Navigator -->
+                    <button onclick="toggleGrid()" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 transition-colors" title="เลือกข้อ">
+                        <i class="fa-solid fa-list-ol"></i>
+                    </button>
+
+                    <!-- Random Toggle -->
+                    <button id="btn-random" onclick="toggleRandomMode()" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="สุ่มโจทย์">
+                        <i class="fa-solid fa-shuffle"></i>
+                    </button>
+                    
+                    <!-- Dark Mode -->
+                    <button onclick="toggleDarkMode()" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-400 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors">
+                        <i id="theme-icon" class="fa-solid fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="w-full bg-gray-200 dark:bg-gray-700 h-1 mt-1">
+            <div id="progress-bar" class="bg-indigo-600 h-1 transition-all duration-300" style="width: 0%"></div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 2. MAIN CONTENT (Scrollable Area) -->
+    <!-- ========================================== -->
+    <main class="flex-1 overflow-hidden relative w-full max-w-3xl mx-auto flex flex-col z-0">
+        
+        <!-- Scrollable Question Area -->
+        <div id="scroll-container" class="flex-1 overflow-y-auto custom-scroll p-4 pb-24 safe-pb scroll-smooth">
+            
+            <!-- Info Bar (Category & Score) -->
+            <div class="flex justify-between items-center mb-4 text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">
+                <span id="category-badge" class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300 truncate max-w-[60%]">
+                    หมวดทั่วไป
+                </span>
+                <span id="score-display">คะแนน: 0</span>
+            </div>
+
+            <!-- Question Text -->
+            <div class="mb-6">
+                <h2 id="question-text" class="text-lg md:text-xl font-bold leading-relaxed text-gray-800 dark:text-white">
+                    กำลังโหลดโจทย์...
+                </h2>
+                <p id="question-number" class="text-sm text-gray-400 mt-1 dark:text-gray-500">ข้อที่ - / -</p>
+            </div>
+
+            <!-- Options Grid -->
+            <div id="options-container" class="grid gap-3">
+                <!-- Options injected via JS -->
+            </div>
+
+            <!-- Explanation Box (Hidden initially) -->
+            <div id="explanation-box" class="hidden mt-6 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 animate-fade-in">
+                <div class="flex gap-3">
+                    <div class="shrink-0 mt-1">
+                        <i class="fa-solid fa-lightbulb text-amber-400 text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-blue-800 dark:text-blue-300 text-sm mb-1">คำอธิบาย</h3>
+                        <p id="explanation-text" class="text-blue-900 dark:text-blue-200 text-sm leading-relaxed"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Spacer to ensure content isn't covered by fixed footer -->
+            <div class="h-8"></div>
+        </div>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 3. QUESTION NAVIGATOR OVERLAY (Hidden) -->
+    <!-- ========================================== -->
+    <div id="grid-overlay" class="fixed inset-0 z-40 hidden flex flex-col justify-end">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity opacity-0" id="grid-backdrop" onclick="toggleGrid()"></div>
+        
+        <!-- Drawer -->
+        <div class="bg-white dark:bg-gray-800 w-full max-w-3xl mx-auto rounded-t-2xl shadow-2xl z-50 transform translate-y-full transition-transform duration-300 flex flex-col max-h-[80vh]" id="grid-drawer">
+            <!-- Handle -->
+            <div class="flex-none p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                <span class="font-bold text-gray-700 dark:text-gray-200 text-lg">
+                    <i class="fa-solid fa-list-ol mr-2 text-indigo-500"></i>เลือกข้อ
+                </span>
+                <button onclick="toggleGrid()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <!-- Grid Content -->
+            <div class="flex-1 overflow-y-auto p-4">
+                <div id="question-grid" class="grid grid-cols-5 sm:grid-cols-8 gap-2">
+                    <!-- Grid items injected here -->
+                </div>
+            </div>
+            
+            <!-- Legend -->
+            <div class="flex-none p-3 bg-gray-50 dark:bg-gray-900/50 text-xs flex justify-center gap-4 text-gray-500 dark:text-gray-400">
+                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-600"></span> ยังไม่ทำ</div>
+                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500"></span> ถูก</div>
+                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500"></span> ผิด</div>
+            </div>
+            <div class="safe-pb bg-gray-50 dark:bg-gray-900/50"></div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 4. FOOTER CONTROLS (Fixed Bottom) -->
+    <!-- ========================================== -->
+    <footer class="flex-none bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 p-4 safe-pb shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+        <div class="max-w-3xl mx-auto flex items-center gap-3">
+            
+            <button onclick="prevQuestion()" id="btn-prev" disabled 
+                class="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold transition active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            
+            <button id="next-btn" onclick="nextQuestion()" class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition transform active:scale-[0.98] flex items-center justify-center gap-2">
+                <span>ข้อถัดไป</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+
+        </div>
+    </footer>
+
+    <!-- ========================================== -->
+    <!-- DATA LOADING ZONE -->
+    <!-- ========================================== -->
     <script>
         var allExamSets = []; 
     </script>
-</head>
-<body class="bg-gray-100 h-screen flex overflow-hidden">
 
-    <!-- Sidebar (เมนูด้านซ้าย) -->
-    <aside class="w-80 bg-white shadow-xl flex-shrink-0 flex flex-col h-full z-20 hidden md:flex border-r border-gray-200">
-        <!-- Header -->
-        <div class="p-6 border-b bg-gradient-to-r from-indigo-900 to-blue-800 text-white">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                    <i class="fa-solid fa-scale-balanced text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="text-lg font-bold leading-tight">OAG Exam Pro</h1>
-                    <p class="text-xs text-indigo-200">ระบบฝึกสอบเสมือนจริง</p>
-                </div>
-            </div>
-        </div>
+    <!-- LOAD YOUR QUESTIONS HERE -->
+    <script src="questions1.js" onerror="console.log('questions1.js missing')"></script>
+    <script src="questions2.js" onerror="console.log('questions2.js missing')"></script>
+    <script src="questions3.js" onerror="console.log('questions3.js missing')"></script>
+    <script src="questions4.js" onerror="console.log('questions4.js missing')"></script>
+    <script src="questions5.js" onerror="console.log('questions5.js missing')"></script>
+    <script src="questions6.js" onerror="console.log('questions6.js missing')"></script>
+    <script src="questions7.js" onerror="console.log('questions7.js missing')"></script>
+    <script src="questions8.js" onerror="console.log('questions8.js missing')"></script>
 
-        <div class="p-4 flex-1 overflow-y-auto">
+    <!-- ========================================== -->
+    <!-- APP LOGIC -->
+    <!-- ========================================== -->
+    <script>
+        // --- State Variables ---
+        let activeExamSet = null;
+        let currentQuestions = [];
+        let currentIndex = 0;
+        let isRandomMode = false;
+        let userAnswers = []; // Stores status: null, 'correct', 'wrong'
+        let score = 0;
+        let isDark = localStorage.getItem('theme') === 'dark';
+        let currentFilter = 'all';
+
+        // --- Mock Data ---
+        if (allExamSets.length === 0) {
+            allExamSets.push({
+                id: "demo", 
+                name: "ตัวอย่าง (ไม่พบไฟล์คำถาม)", 
+                data: [
+                    { category: "Demo A", question: "คำถามหมวด A", options: ["1", "2"], correct: 0, explanation: "..." },
+                    { category: "Demo B", question: "คำถามหมวด B", options: ["3", "4"], correct: 1, explanation: "..." }
+                ]
+            });
+        }
+
+        // --- Init ---
+        window.onload = function() {
+            applyTheme();
+            renderExamSelector();
             
-            <!-- 📂 ส่วนเลือกชุดข้อสอบ -->
-            <div class="mb-6 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                <label class="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2 block">
-                    <i class="fa-solid fa-book-open mr-1"></i> เลือกวิชาที่สอบ
-                </label>
-                <select id="exam-selector" onchange="changeExamSet()" class="w-full p-2.5 border border-indigo-200 rounded-lg bg-white text-gray-700 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer hover:border-indigo-400 transition">
-                    <option value="">-- กรุณาเลือกชุดข้อสอบ --</option>
-                </select>
-            </div>
+            // Try to restore previous session
+            const restored = restoreSession();
+            
+            // If no valid save found, start default first set
+            if (!restored && allExamSets.length > 0) {
+                document.getElementById('exam-selector').value = allExamSets[0].id;
+                changeExamSet(false); // False means don't clear save, just load
+            }
+        };
 
-            <!-- โหมดการสอบ -->
-            <div class="mb-6">
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 ml-1">โหมดการสอบ</p>
-                <div class="flex space-x-2 bg-gray-100 p-1 rounded-lg">
-                    <button onclick="setMode('normal')" id="btn-mode-normal" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition text-center shadow-sm">
-                        <i class="fa-solid fa-list-ol mr-1"></i> เรียงข้อ
-                    </button>
-                    <button onclick="setMode('random')" id="btn-mode-random" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition text-center text-gray-500 hover:text-gray-700">
-                        <i class="fa-solid fa-shuffle mr-1"></i> สุ่ม
-                    </button>
-                </div>
-            </div>
+        // --- Theme Logic ---
+        function toggleDarkMode() {
+            isDark = !isDark;
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            applyTheme();
+        }
+        function applyTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (isDark) {
+                html.classList.add('dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            } else {
+                html.classList.remove('dark');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            }
+        }
 
-            <!-- รายการหมวดหมู่ -->
-            <div>
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 ml-1">เลือกหมวดหมู่ย่อย</p>
-                <div id="category-list" class="space-y-1">
-                    <!-- JS จะสร้างปุ่มหมวดหมู่ที่นี่ -->
-                    <div class="text-center text-gray-400 text-sm py-4 italic">
-                        กรุณาเลือกวิชาด้านบนก่อน
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="p-3 border-t text-center text-xs text-gray-400 bg-gray-50">
-            ของซีนใช้เตรียมสอบราชการเท่านั้น
-        </div>
-    </aside>
+        // --- Persistence Logic (Save/Load) ---
+        function saveProgress() {
+            if (!activeExamSet) return;
+            const questionIndices = currentQuestions.map(q => activeExamSet.data.indexOf(q));
+            const state = {
+                examId: activeExamSet.id,
+                currentIndex: currentIndex,
+                score: score,
+                userAnswers: userAnswers,
+                isRandomMode: isRandomMode,
+                currentFilter: currentFilter,
+                questionIndices: questionIndices,
+                timestamp: new Date().getTime()
+            };
+            localStorage.setItem('oag_exam_progress', JSON.stringify(state));
+        }
 
-    <!-- Main Content (ส่วนทำข้อสอบ) -->
-    <main class="flex-1 flex flex-col h-full relative">
-        
-        <!-- Mobile Header -->
-        <div class="md:hidden bg-indigo-900 text-white p-4 shadow flex justify-between items-center z-30">
-            <h1 class="font-bold flex items-center gap-2">
-                <i class="fa-solid fa-scale-balanced"></i> OAG Exam
-            </h1>
-            <button onclick="document.querySelector('aside').classList.toggle('hidden'); document.querySelector('aside').classList.toggle('absolute');" class="text-white bg-white/20 p-2 rounded hover:bg-white/30 transition">
-                <i class="fa-solid fa-bars"></i> เมนู
-            </button>
-        </div>
+        function restoreSession() {
+            const saved = localStorage.getItem('oag_exam_progress');
+            if (!saved) return false;
 
-        <div class="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center bg-gray-100">
-            <div class="w-full max-w-4xl flex flex-col h-full md:h-auto">
+            try {
+                const state = JSON.parse(saved);
+                const set = allExamSets.find(s => s.id === state.examId);
                 
-                <!-- Info Bar -->
-                <div class="flex flex-col md:flex-row justify-between items-end mb-4 gap-2">
-                    <div>
-                        <span id="current-exam-name" class="text-xl font-bold text-gray-800 block leading-tight">ยินดีต้อนรับ</span>
-                        <div class="mt-1">
-                            <span id="current-cat-badge" class="bg-gray-200 text-gray-600 text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center">
-                                <i class="fa-solid fa-layer-group mr-1"></i> รอการเลือก...
-                            </span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-4 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-                        <div class="text-right">
-                            <div class="text-xs text-gray-400 uppercase font-bold">ข้อที่</div>
-                            <div class="text-lg font-bold text-gray-700 leading-none">
-                                <span id="q-index">0</span> <span class="text-sm text-gray-400">/</span> <span id="q-total">0</span>
-                            </div>
-                        </div>
-                        <div class="h-8 w-px bg-gray-200"></div>
-                        <div class="text-right">
-                            <div class="text-xs text-gray-400 uppercase font-bold">คะแนน</div>
-                            <div id="score-display" class="text-lg font-bold text-green-600 leading-none">
-                                <span id="score-val">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                if (!set) return false; 
 
-                <!-- Question Box -->
-                <div class="bg-white rounded-2xl shadow-lg border border-gray-100 flex-1 flex flex-col overflow-hidden relative">
-                    <!-- Decorative Bar -->
-                    <div class="h-1.5 w-full bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-                    
-                    <div class="p-6 md:p-10 flex-1 overflow-y-auto">
-                        <div id="question-text" class="text-xl md:text-2xl font-medium text-gray-800 mb-8 leading-relaxed text-center py-10 flex flex-col items-center justify-center h-full text-gray-400">
-                            <i class="fa-solid fa-hand-pointer text-4xl mb-4 text-indigo-200 animate-bounce"></i>
-                            <p>กรุณาเลือกชุดข้อสอบจากเมนูด้านซ้าย<br>เพื่อเริ่มต้นทำข้อสอบ</p>
-                        </div>
+                // Restore
+                activeExamSet = set;
+                document.getElementById('exam-selector').value = set.id;
+                currentIndex = state.currentIndex;
+                score = state.score;
+                userAnswers = state.userAnswers;
+                isRandomMode = state.isRandomMode;
+                currentFilter = state.currentFilter || 'all';
 
-                        <div id="options-container" class="space-y-3 pb-4"></div>
+                setupCategoryDropdown(set);
+                document.getElementById('category-selector').value = currentFilter;
 
-                        <!-- Explanation -->
-                        <div id="explanation-box" class="hidden mt-6 bg-blue-50 border border-blue-100 rounded-xl p-5 animate-fade-in relative overflow-hidden">
-                            <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-                            <div class="flex gap-3">
-                                <div class="flex-shrink-0 mt-1">
-                                    <i class="fa-solid fa-lightbulb text-yellow-500 text-xl"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-blue-900 font-bold mb-1">คำอธิบายเฉลย</p>
-                                    <p id="explanation-text" class="text-sm text-blue-800 leading-relaxed"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                const btnRandom = document.getElementById('btn-random');
+                if (isRandomMode) {
+                    btnRandom.classList.add('text-indigo-600', 'bg-indigo-50', 'dark:text-indigo-400', 'dark:bg-indigo-900/50');
+                    btnRandom.classList.remove('text-gray-400', 'bg-gray-100', 'dark:text-gray-500', 'dark:bg-gray-700');
+                } else {
+                    btnRandom.classList.remove('text-indigo-600', 'bg-indigo-50', 'dark:text-indigo-400', 'dark:bg-indigo-900/50');
+                    btnRandom.classList.add('text-gray-400', 'bg-gray-100', 'dark:text-gray-500', 'dark:bg-gray-700');
+                }
 
-                <!-- Controls -->
-                <div class="mt-6 flex justify-between items-center">
-                    <button onclick="prevQuestion()" class="px-6 py-3 rounded-xl bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 font-bold transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-2" id="btn-prev" disabled>
-                        <i class="fa-solid fa-arrow-left"></i> ย้อนกลับ
-                    </button>
-                    
-                    <button id="next-btn" onclick="nextQuestion()" class="hidden px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white hover:from-indigo-700 hover:to-blue-700 font-bold shadow-lg shadow-indigo-200 transition transform hover:-translate-y-0.5 flex items-center gap-2">
-                        ข้อถัดไป <i class="fa-solid fa-arrow-right"></i>
-                    </button>
-                </div>
+                if (state.questionIndices && state.questionIndices.length > 0) {
+                    currentQuestions = state.questionIndices.map(i => set.data[i]).filter(Boolean);
+                } else {
+                    currentQuestions = [...set.data];
+                }
+                
+                if (currentQuestions.length === 0 || currentQuestions.length !== userAnswers.length) return false; 
 
-            </div>
-        </div>
-    </main>
+                loadQuestion();
+                return true;
 
-    <!-- ⬇️ โหลดไฟล์ข้อสอบทั้งหมดที่นี่ (เรียงลำดับสำคัญ) ⬇️ -->
-    <!-- 1. โหลดไฟล์โจทย์ (จะ push ข้อมูลเข้า allExamSets) -->
-    <script src="questions1.js"></script>
-    <script src="questions2.js"></script>
-    <script src="questions3.js"></script>
-    <script src="questions4.js"></script>
-    <script src="questions5.js"></script>
-    <script src="questions6.js"></script>
-    
-     <!-- 2. โหลด Logic การทำงาน (ต้องโหลดหลังสุด) -->
-    <script src="app.js"></script>
+            } catch (e) {
+                console.error("Save file corrupted", e);
+                return false;
+            }
+        }
+
+        function clearProgress() {
+            localStorage.removeItem('oag_exam_progress');
+        }
+
+        function resetExam() {
+            if(confirm('ต้องการล้างคำตอบและเริ่มทำใหม่ทั้งหมดหรือไม่? (ข้อมูลปัจจุบันจะถูกลบ)')) {
+                clearProgress();
+                currentIndex = 0;
+                score = 0;
+                userAnswers = new Array(currentQuestions.length).fill(null);
+                
+                // We keep the current question order (filtered/random or not)
+                // Just clear answers
+                loadQuestion();
+                saveProgress(); // Save fresh state
+                
+                // If grid was open, close it
+                const overlay = document.getElementById('grid-overlay');
+                const backdrop = document.getElementById('grid-backdrop');
+                const drawer = document.getElementById('grid-drawer');
+                if (!overlay.classList.contains('hidden')) {
+                    backdrop.classList.add('opacity-0');
+                    drawer.classList.add('translate-y-full');
+                    setTimeout(() => overlay.classList.add('hidden'), 300);
+                }
+            }
+        }
+
+        // --- Setup Functions ---
+        function renderExamSelector() {
+            const selector = document.getElementById('exam-selector');
+            selector.innerHTML = '<option value="" disabled selected>เลือกชุดข้อสอบ...</option>';
+            allExamSets.forEach(set => {
+                const option = document.createElement('option');
+                option.value = set.id;
+                option.textContent = set.name;
+                selector.appendChild(option);
+            });
+        }
+
+        function setupCategoryDropdown(set) {
+            const categories = [...new Set(set.data.map(q => q.category))].filter(Boolean);
+            const catWrapper = document.getElementById('category-wrapper');
+            const catSelector = document.getElementById('category-selector');
+            
+            if (categories.length > 1) {
+                catWrapper.classList.remove('hidden');
+                catSelector.innerHTML = '<option value="all">รวมทุกหมวดหมู่ (All)</option>';
+                categories.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.innerText = cat;
+                    catSelector.appendChild(opt);
+                });
+            } else {
+                catWrapper.classList.add('hidden');
+            }
+        }
+
+        function changeExamSet(isUserAction = false) {
+            const selector = document.getElementById('exam-selector');
+            const selectedId = selector.value;
+            activeExamSet = allExamSets.find(set => set.id === selectedId);
+            
+            if (activeExamSet) {
+                if (isUserAction) clearProgress();
+
+                setupCategoryDropdown(activeExamSet);
+                document.getElementById('category-selector').value = 'all';
+                currentFilter = 'all';
+
+                filterAndLoadQuestions(true); 
+            }
+        }
+
+        function changeCategory() {
+            currentFilter = document.getElementById('category-selector').value;
+            filterAndLoadQuestions(true);
+        }
+
+        function toggleRandomMode() {
+            isRandomMode = !isRandomMode;
+            const btn = document.getElementById('btn-random');
+            if (isRandomMode) {
+                btn.classList.add('text-indigo-600', 'bg-indigo-50', 'dark:text-indigo-400', 'dark:bg-indigo-900/50');
+                btn.classList.remove('text-gray-400', 'bg-gray-100', 'dark:text-gray-500', 'dark:bg-gray-700');
+            } else {
+                btn.classList.remove('text-indigo-600', 'bg-indigo-50', 'dark:text-indigo-400', 'dark:bg-indigo-900/50');
+                btn.classList.add('text-gray-400', 'bg-gray-100', 'dark:text-gray-500', 'dark:bg-gray-700');
+            }
+            filterAndLoadQuestions(true); 
+        }
+
+        // --- Core Logic ---
+        function filterAndLoadQuestions(shouldSave = false) {
+            let filtered = activeExamSet.data;
+            if (currentFilter !== 'all') {
+                filtered = activeExamSet.data.filter(q => q.category === currentFilter);
+            }
+
+            currentQuestions = [...filtered];
+            if (isRandomMode) {
+                shuffleArray(currentQuestions);
+            }
+
+            currentIndex = 0;
+            score = 0;
+            userAnswers = new Array(currentQuestions.length).fill(null);
+
+            loadQuestion();
+            if (shouldSave) saveProgress();
+        }
+
+        function loadQuestion() {
+            if (currentQuestions.length === 0) return;
+
+            const qData = currentQuestions[currentIndex];
+            const savedState = userAnswers[currentIndex]; 
+
+            document.getElementById('question-number').innerText = `ข้อที่ ${currentIndex + 1} จาก ${currentQuestions.length}`;
+            document.getElementById('question-text').innerText = qData.question;
+            document.getElementById('category-badge').innerText = qData.category || 'ทั่วไป';
+            document.getElementById('score-display').innerText = `คะแนน: ${score}`;
+            document.getElementById('progress-bar').style.width = `${((currentIndex + 1) / currentQuestions.length) * 100}%`;
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            const explanationBox = document.getElementById('explanation-box');
+            explanationBox.classList.add('hidden');
+            
+            const nextBtn = document.getElementById('next-btn');
+            const nextBtnText = nextBtn.querySelector('span');
+            document.getElementById('btn-prev').disabled = currentIndex === 0;
+
+            if (currentIndex === currentQuestions.length - 1) {
+                nextBtnText.innerText = "สรุปผล";
+                nextBtn.classList.remove('bg-indigo-600');
+                nextBtn.classList.add('bg-green-600');
+            } else {
+                nextBtnText.innerText = "ข้อถัดไป";
+                nextBtn.classList.remove('bg-green-600');
+                nextBtn.classList.add('bg-indigo-600');
+            }
+
+            qData.options.forEach((optText, index) => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left p-4 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-indigo-200 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-start gap-3 group`;
+                
+                if (savedState) btn.disabled = true;
+                else btn.onclick = () => checkAnswer(index, btn);
+                
+                const circle = document.createElement('div');
+                circle.className = "w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-500 flex-shrink-0 mt-0.5 group-hover:border-indigo-400 transition-colors flex items-center justify-center text-xs font-bold text-white";
+                
+                const text = document.createElement('span');
+                text.className = "text-gray-700 dark:text-gray-300 font-medium text-base";
+                text.innerText = optText;
+
+                btn.appendChild(circle);
+                btn.appendChild(text);
+                optionsContainer.appendChild(btn);
+
+                if (savedState) {
+                    btn.classList.add('cursor-default', 'opacity-80');
+                    if (index === qData.correct) styleButton(btn, 'correct');
+                }
+            });
+
+            if (savedState) {
+                const allBtns = optionsContainer.children;
+                styleButton(allBtns[qData.correct], 'correct');
+                document.getElementById('explanation-text').innerText = qData.explanation;
+                explanationBox.classList.remove('hidden');
+                nextBtn.classList.remove('hidden');
+            } else {
+                nextBtn.classList.add('hidden');
+            }
+        }
+
+        function checkAnswer(selectedIndex, btnElement) {
+            if (userAnswers[currentIndex]) return; 
+
+            const qData = currentQuestions[currentIndex];
+            const correctIndex = qData.correct;
+            const options = document.getElementById('options-container').children;
+            let status = 'wrong';
+
+            if (selectedIndex === correctIndex) {
+                score++;
+                status = 'correct';
+                styleButton(btnElement, 'correct');
+            } else {
+                styleButton(btnElement, 'wrong');
+                styleButton(options[correctIndex], 'correct');
+            }
+
+            userAnswers[currentIndex] = status;
+            saveProgress(); 
+            
+            for (let btn of options) {
+                btn.disabled = true;
+                btn.classList.add('cursor-default', 'opacity-80');
+                btn.classList.remove('hover:bg-indigo-50', 'hover:border-indigo-200');
+            }
+
+            document.getElementById('explanation-text').innerText = qData.explanation;
+            document.getElementById('explanation-box').classList.remove('hidden');
+            document.getElementById('next-btn').classList.remove('hidden');
+            document.getElementById('score-display').innerText = `คะแนน: ${score}`;
+
+            setTimeout(() => {
+                const container = document.getElementById('scroll-container');
+                const element = document.getElementById('explanation-box');
+                const offset = element.offsetTop;
+                container.scrollTo({ top: offset - 20, behavior: 'smooth' });
+            }, 100);
+        }
+
+        function styleButton(btn, type) {
+            const circle = btn.firstChild;
+            btn.classList.remove('border-gray-100', 'bg-white', 'dark:bg-gray-800', 'dark:border-gray-700');
+            
+            if (type === 'correct') {
+                btn.classList.add('bg-green-50', 'border-green-500', 'dark:bg-green-900/30', 'dark:border-green-600');
+                circle.classList.remove('border-gray-300', 'dark:border-gray-500');
+                circle.classList.add('bg-green-500', 'border-green-500');
+                circle.innerHTML = '<i class="fa-solid fa-check"></i>';
+            } else if (type === 'wrong') {
+                btn.classList.add('bg-red-50', 'border-red-500', 'dark:bg-red-900/30', 'dark:border-red-600');
+                circle.classList.remove('border-gray-300', 'dark:border-gray-500');
+                circle.classList.add('bg-red-500', 'border-red-500');
+                circle.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            }
+        }
+
+        // --- Navigation ---
+        function nextQuestion() {
+            if (currentIndex < currentQuestions.length - 1) {
+                currentIndex++;
+                loadQuestion();
+                saveProgress();
+                document.getElementById('scroll-container').scrollTop = 0;
+            } else {
+                finishExam();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                loadQuestion();
+                saveProgress();
+                document.getElementById('scroll-container').scrollTop = 0;
+            }
+        }
+        
+        function jumpToQuestion(index) {
+            currentIndex = index;
+            toggleGrid(); 
+            loadQuestion();
+            saveProgress();
+            document.getElementById('scroll-container').scrollTop = 0;
+        }
+
+        // --- Grid ---
+        function toggleGrid() {
+            const overlay = document.getElementById('grid-overlay');
+            const backdrop = document.getElementById('grid-backdrop');
+            const drawer = document.getElementById('grid-drawer');
+            
+            if (overlay.classList.contains('hidden')) {
+                renderGrid();
+                overlay.classList.remove('hidden');
+                setTimeout(() => {
+                    backdrop.classList.remove('opacity-0');
+                    drawer.classList.remove('translate-y-full');
+                }, 10);
+            } else {
+                backdrop.classList.add('opacity-0');
+                drawer.classList.add('translate-y-full');
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('question-grid');
+            grid.innerHTML = '';
+            
+            currentQuestions.forEach((_, idx) => {
+                const status = userAnswers[idx];
+                const btn = document.createElement('button');
+                const isCurrent = idx === currentIndex;
+                
+                let classes = "h-10 w-full rounded-lg font-bold text-sm transition-all flex items-center justify-center border-2 ";
+                
+                if (status === 'correct') {
+                    classes += "bg-green-100 border-green-500 text-green-700 dark:bg-green-900/50 dark:text-green-300 dark:border-green-600";
+                } else if (status === 'wrong') {
+                    classes += "bg-red-100 border-red-500 text-red-700 dark:bg-red-900/50 dark:text-red-300 dark:border-red-600";
+                } else {
+                    classes += "bg-gray-100 border-transparent text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:border-gray-300";
+                }
+                
+                if (isCurrent) classes += " ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-gray-800";
+
+                btn.className = classes;
+                btn.innerText = idx + 1;
+                btn.onclick = () => jumpToQuestion(idx);
+                grid.appendChild(btn);
+            });
+        }
+
+        function finishExam() {
+            const percent = Math.round((score / currentQuestions.length) * 100);
+            let msg = percent >= 60 ? "ผ่านเกณฑ์! 👍" : "พยายามอีกนิดนะ! ✌️";
+            if(confirm(`🏁 จบการทดสอบ!\nคะแนน: ${score}/${currentQuestions.length} (${percent}%)\n\n${msg}\n\nต้องการล้างผลและเริ่มใหม่หรือไม่?`)) {
+                clearProgress();
+                currentIndex = 0;
+                score = 0;
+                userAnswers = new Array(currentQuestions.length).fill(null);
+                
+                if(isRandomMode) toggleRandomMode(); 
+                else {
+                     loadQuestion();
+                     saveProgress();
+                }
+            }
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+    </script>
 </body>
 </html>

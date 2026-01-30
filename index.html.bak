@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบฝึกข้อสอบอัยการ (OAG Exam Pro)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 3px; }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+    </style>
+    
+    <!-- ⚠️ สำคัญมาก: ประกาศตัวแปรนี้ไว้ก่อนโหลดไฟล์โจทย์ -->
+    <script>
+        var allExamSets = []; 
+    </script>
+</head>
+<body class="bg-gray-100 h-screen flex overflow-hidden">
+
+    <!-- Sidebar (เมนูด้านซ้าย) -->
+    <aside class="w-80 bg-white shadow-xl flex-shrink-0 flex flex-col h-full z-20 hidden md:flex border-r border-gray-200">
+        <!-- Header -->
+        <div class="p-6 border-b bg-gradient-to-r from-indigo-900 to-blue-800 text-white">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-scale-balanced text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold leading-tight">OAG Exam Pro</h1>
+                    <p class="text-xs text-indigo-200">ระบบฝึกสอบเสมือนจริง</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 flex-1 overflow-y-auto">
+            
+            <!-- 📂 ส่วนเลือกชุดข้อสอบ -->
+            <div class="mb-6 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                <label class="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2 block">
+                    <i class="fa-solid fa-book-open mr-1"></i> เลือกวิชาที่สอบ
+                </label>
+                <select id="exam-selector" onchange="changeExamSet()" class="w-full p-2.5 border border-indigo-200 rounded-lg bg-white text-gray-700 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer hover:border-indigo-400 transition">
+                    <option value="">-- กรุณาเลือกชุดข้อสอบ --</option>
+                </select>
+            </div>
+
+            <!-- โหมดการสอบ -->
+            <div class="mb-6">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 ml-1">โหมดการสอบ</p>
+                <div class="flex space-x-2 bg-gray-100 p-1 rounded-lg">
+                    <button onclick="setMode('normal')" id="btn-mode-normal" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition text-center shadow-sm">
+                        <i class="fa-solid fa-list-ol mr-1"></i> เรียงข้อ
+                    </button>
+                    <button onclick="setMode('random')" id="btn-mode-random" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition text-center text-gray-500 hover:text-gray-700">
+                        <i class="fa-solid fa-shuffle mr-1"></i> สุ่ม
+                    </button>
+                </div>
+            </div>
+
+            <!-- รายการหมวดหมู่ -->
+            <div>
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 ml-1">เลือกหมวดหมู่ย่อย</p>
+                <div id="category-list" class="space-y-1">
+                    <!-- JS จะสร้างปุ่มหมวดหมู่ที่นี่ -->
+                    <div class="text-center text-gray-400 text-sm py-4 italic">
+                        กรุณาเลือกวิชาด้านบนก่อน
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="p-3 border-t text-center text-xs text-gray-400 bg-gray-50">
+            ของซีนใช้เตรียมสอบราชการเท่านั้น
+        </div>
+    </aside>
+
+    <!-- Main Content (ส่วนทำข้อสอบ) -->
+    <main class="flex-1 flex flex-col h-full relative">
+        
+        <!-- Mobile Header -->
+        <div class="md:hidden bg-indigo-900 text-white p-4 shadow flex justify-between items-center z-30">
+            <h1 class="font-bold flex items-center gap-2">
+                <i class="fa-solid fa-scale-balanced"></i> OAG Exam
+            </h1>
+            <button onclick="document.querySelector('aside').classList.toggle('hidden'); document.querySelector('aside').classList.toggle('absolute');" class="text-white bg-white/20 p-2 rounded hover:bg-white/30 transition">
+                <i class="fa-solid fa-bars"></i> เมนู
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center bg-gray-100">
+            <div class="w-full max-w-4xl flex flex-col h-full md:h-auto">
+                
+                <!-- Info Bar -->
+                <div class="flex flex-col md:flex-row justify-between items-end mb-4 gap-2">
+                    <div>
+                        <span id="current-exam-name" class="text-xl font-bold text-gray-800 block leading-tight">ยินดีต้อนรับ</span>
+                        <div class="mt-1">
+                            <span id="current-cat-badge" class="bg-gray-200 text-gray-600 text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center">
+                                <i class="fa-solid fa-layer-group mr-1"></i> รอการเลือก...
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+                        <div class="text-right">
+                            <div class="text-xs text-gray-400 uppercase font-bold">ข้อที่</div>
+                            <div class="text-lg font-bold text-gray-700 leading-none">
+                                <span id="q-index">0</span> <span class="text-sm text-gray-400">/</span> <span id="q-total">0</span>
+                            </div>
+                        </div>
+                        <div class="h-8 w-px bg-gray-200"></div>
+                        <div class="text-right">
+                            <div class="text-xs text-gray-400 uppercase font-bold">คะแนน</div>
+                            <div id="score-display" class="text-lg font-bold text-green-600 leading-none">
+                                <span id="score-val">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question Box -->
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-100 flex-1 flex flex-col overflow-hidden relative">
+                    <!-- Decorative Bar -->
+                    <div class="h-1.5 w-full bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                    
+                    <div class="p-6 md:p-10 flex-1 overflow-y-auto">
+                        <div id="question-text" class="text-xl md:text-2xl font-medium text-gray-800 mb-8 leading-relaxed text-center py-10 flex flex-col items-center justify-center h-full text-gray-400">
+                            <i class="fa-solid fa-hand-pointer text-4xl mb-4 text-indigo-200 animate-bounce"></i>
+                            <p>กรุณาเลือกชุดข้อสอบจากเมนูด้านซ้าย<br>เพื่อเริ่มต้นทำข้อสอบ</p>
+                        </div>
+
+                        <div id="options-container" class="space-y-3 pb-4"></div>
+
+                        <!-- Explanation -->
+                        <div id="explanation-box" class="hidden mt-6 bg-blue-50 border border-blue-100 rounded-xl p-5 animate-fade-in relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                            <div class="flex gap-3">
+                                <div class="flex-shrink-0 mt-1">
+                                    <i class="fa-solid fa-lightbulb text-yellow-500 text-xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-blue-900 font-bold mb-1">คำอธิบายเฉลย</p>
+                                    <p id="explanation-text" class="text-sm text-blue-800 leading-relaxed"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="mt-6 flex justify-between items-center">
+                    <button onclick="prevQuestion()" class="px-6 py-3 rounded-xl bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 font-bold transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-2" id="btn-prev" disabled>
+                        <i class="fa-solid fa-arrow-left"></i> ย้อนกลับ
+                    </button>
+                    
+                    <button id="next-btn" onclick="nextQuestion()" class="hidden px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white hover:from-indigo-700 hover:to-blue-700 font-bold shadow-lg shadow-indigo-200 transition transform hover:-translate-y-0.5 flex items-center gap-2">
+                        ข้อถัดไป <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- ⬇️ โหลดไฟล์ข้อสอบทั้งหมดที่นี่ (เรียงลำดับสำคัญ) ⬇️ -->
+    <!-- 1. โหลดไฟล์โจทย์ (จะ push ข้อมูลเข้า allExamSets) -->
+    <script src="questions1.js"></script>
+    <script src="questions2.js"></script>
+    <script src="questions3.js"></script>
+    <script src="questions4.js"></script>
+    <script src="questions5.js"></script>
+    <script src="questions6.js"></script>
+    <script src="questions7.js"></script>
+    <script src="questions8.js"></script>
+      <!-- 2. โหลด Logic การทำงาน (ต้องโหลดหลังสุด) -->
+    <script src="app.js"></script>
+</body>
+</html>
